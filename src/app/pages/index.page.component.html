@@ -1,0 +1,158 @@
+<!-- index.page.component.html -->
+<main>
+  @if (loading$ | async) {
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div class="bg-white rounded-lg p-8 flex flex-col items-center">
+        <div class="mb-2">One moment please…</div>
+        <mat-spinner class="!w-16 !h-16" mode="indeterminate"></mat-spinner>
+      </div>
+    </div>
+  }
+
+  @if (currentEgwSelection$ | async; as currentEgwSelection) {
+    <div class="font-bold pr-8 pl-8 pt-8 text-4xl grid grid-cols-[1fr_15rem]">
+      Latest posts ({{ currentEgwSelection }})
+      <button class="!rounded-md"
+              [disabled]="loading$ | async"
+              mat-flat-button
+              (click)="swapDataSource(currentEgwSelection === 'dynamoDb' ? 'jsonPlaceholder' : 'dynamoDb')">
+        Load {{ currentEgwSelection === 'dynamoDb' ? 'jsonPlaceholder' : 'dynamoDb' }} posts
+      </button>
+    </div>
+  }
+
+  <div class="flex flex-col gap-4 ml-8 mr-8 mt-8 border-2 p-7 rounded-md !border-gray-700">
+    <div class="font-bold text-3xl">Search</div>
+    <div [formGroup]="searchForm" class="flex gap-8 items-end">
+      <div>
+        <mat-form-field>
+          <mat-label>Field to search for</mat-label>
+          <mat-select formControlName="field">
+            @for (field of postAttributes; track field) {
+              <mat-option [value]="field">{{ field }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <div>
+        <mat-form-field>
+          <mat-label>Operator</mat-label>
+          <mat-select formControlName="operator">
+            @for (operator of operators; track operator) {
+              <mat-option [value]="operator">{{ operator }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <div>
+        <mat-form-field>
+          <mat-label>Value</mat-label>
+          <input #first formControlName="value" matInput>
+        </mat-form-field>
+      </div>
+      <div>
+        <mat-form-field>
+          <mat-label>Field to sort by</mat-label>
+          <mat-select formControlName="sortBy">
+            @for (field of postAttributes; track field) {
+              <mat-option [value]="field">{{ field }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div>
+        <mat-form-field>
+          <mat-label>Sort direction</mat-label>
+          <mat-select formControlName="sortDirection">
+            @for (field of sortAttributes; track field) {
+              <mat-option [value]="field">{{ field }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <div class="ml-auto">
+        <button (click)="loadPosts()"
+                [disabled]="!isValid() || (loading$ | async)"
+                class="!rounded-md"
+                mat-flat-button>
+          Search post
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-4 gap-8 border-2 p-7 rounded-md !border-gray-700 ml-8 mr-8 mt-4 mb-8">
+    <div class="col-span-4 flex justify-end">
+      <button (click)="createRandomPost()"
+              [disabled]="loading$ | async"
+              class="!rounded-md"
+              mat-flat-button>
+        Create random post
+      </button>
+    </div>
+
+    @if (posts$ | async; as paginatedResponse) {
+      @for (post of paginatedResponse.data; track post.id) {
+        <mat-card class="!bg-white !shadow-none !border-2 !rounded-md !border-gray-700">
+          <mat-card-header>
+            <div
+              class="w-full text-xl font-bold [&::first-letter]:uppercase grid-cols-[1fr_24px_24px] text-black grid gap-4 mb-2">
+              <span #matCardTitle [contentEditable]="cardsInEditMode.has(post.id)">{{ post.title }}</span>
+              <div class="ml-auto flex gap-4">
+                @if (!cardsInEditMode.has(post.id)) {
+                  <button (click)="deletePost(post.id)"
+                          class="w-6 h-6">
+                    <mat-icon aria-hidden="false"
+                              aria-label="Delete post"
+                              fontIcon="delete">
+                    </mat-icon>
+                  </button>
+                  <button (click)="cardsInEditMode.add(post.id);"
+                          class="w-6 h-6">
+                    <mat-icon aria-hidden="false"
+                              aria-label="Edit post"
+                              fontIcon="edit">
+                    </mat-icon>
+                  </button>
+                }
+
+                @if (cardsInEditMode.has(post.id)) {
+                  <button (click)="updatePost(post.id, {body: matCardBody.innerText, title: matCardTitle.innerText})"
+                          class="w-6 h-6">
+                    <mat-icon aria-hidden="false"
+                              aria-label="Save post"
+                              fontIcon="save">
+                    </mat-icon>
+                  </button>
+                  <button
+                    (click)="cardsInEditMode.delete(post.id); matCardBody.innerText = post.body; matCardTitle.innerText = post.title;"
+                    class="w-6 h-6">
+                    <mat-icon aria-hidden="false"
+                              aria-label="Cancel updating post"
+                              fontIcon="cancel">
+                    </mat-icon>
+                  </button>
+                }
+              </div>
+            </div>
+          </mat-card-header>
+          <mat-card-content #matCardBody [contentEditable]="cardsInEditMode.has(post.id)">
+            {{ post.body }}
+          </mat-card-content>
+        </mat-card>
+      }
+
+      @if (paginationSettings$ | async; as settings) {
+        <mat-paginator class="mt-0 col-span-4 !bg-white"
+                       (page)="handlePagination($event)"
+                       [length]="paginatedResponse.total || 0"
+                       [pageIndex]="settings.page - 1"
+                       [pageSize]="settings.limit"
+                       [pageSizeOptions]="settings.pageSizeOptions"
+                       aria-label="Select page">
+        </mat-paginator>
+      }
+    }
+  </div>
+</main>
